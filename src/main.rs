@@ -1,6 +1,8 @@
+use itertools::sorted;
 use pulldown_cmark::{html, Options, Parser};
 use serde::Deserialize;
 use std::fs::{self, read_to_string};
+
 use std::io;
 
 use std::path::{Path, PathBuf};
@@ -78,7 +80,7 @@ fn parse_sources(sources: Vec<String>) -> Result<Vec<TomlMd>, toml::de::Error> {
 }
 
 fn read_sources(sources: Vec<PathBuf>) -> io::Result<Vec<String>> {
-    sources.iter().map(|path| read_to_string(path)).collect()
+    sorted(sources).map(|path| read_to_string(path)).collect()
 }
 
 fn discover_sources(path: &Path) -> io::Result<Vec<PathBuf>> {
@@ -150,7 +152,6 @@ title 'Hello world.'
     fn example_load_posts() -> io::Result<Vec<String>> {
         let (dir, _post1, _post2) = example_posts()?;
         let mut sources = discover_sources(dir.path())?;
-        sources.sort(); // HACK: Sometimes they flip!
         read_sources(sources)
     }
 
