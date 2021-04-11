@@ -149,7 +149,8 @@ title 'Hello world.'
 
     fn example_load_posts() -> io::Result<Vec<String>> {
         let (dir, _post1, _post2) = example_posts()?;
-        let sources = discover_sources(dir.path())?;
+        let mut sources = discover_sources(dir.path())?;
+        sources.sort(); // HACK: Sometimes they flip!
         read_sources(sources)
     }
 
@@ -168,9 +169,8 @@ title 'Hello world.'
         let (source1, source2) = SOURCES;
         let (obj1, obj2) = expected_sources_parsed();
 
-        assert_eq!(obj1, TomlMd::parse(&source1.to_string())?,);
-
-        assert_eq!(obj2, TomlMd::parse(&source2.to_string())?,);
+        assert_eq!(obj1, TomlMd::parse(&source1.to_string())?);
+        assert_eq!(obj2, TomlMd::parse(&source2.to_string())?);
         Ok(())
     }
 
