@@ -9,4 +9,5 @@ edition = "2018"
 [dependencies]
 pulldown-cmark = "0.8.0"
 tempfile = "3.2.0"
+serde = { version = "1.0", features = [ "derive" ] }
 toml = "0.5.8"

@@ -1,10 +1,80 @@
+use pulldown_cmark::{html, Options, Parser};
+use serde::Deserialize;
 use std::fs::{self, read_to_string};
 use std::io;
-use std::path::{Path, PathBuf};
-use toml::Value;
 
+use std::path::{Path, PathBuf};
+
+fn to_html(input: &str) -> String {
+    let mut options = Options::empty();
+    options.insert(Options::ENABLE_STRIKETHROUGH);
+    let parser = Parser::new_ext(input, options);
+
+    // Write to String buffer.
+    let mut html_output = String::new();
+    html::push_html(&mut html_output, parser);
+    html_output
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+struct Metadata {
+    title: String,
+}
+
+impl Metadata {
+    fn new(title: &str) -> Metadata {
+        Metadata {
+            title: title.to_string(),
+        }
+    }
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
 struct TomlMd {
-    toml: Toml,
+    metadata: Option<Metadata>,
+    post_html: String,
+}
+
+impl TomlMd {
+    fn new(metadata: Option<Metadata>, post_html: &str) -> TomlMd {
+        TomlMd {
+            metadata,
+            post_html: post_html.to_string(),
+        }
+    }
+
+    fn parse(string: &String) -> Result<TomlMd, toml::de::Error> {
+        let first_line = string.lines().next();
+        let mut sections = string.split("---").into_iter();
+        let metadata: Option<Metadata> = if let Some(line) = first_line {
+            if "---" == line {
+                if let Some(toml) = sections.nth(1) {
+                    Some(toml::from_str(toml)?)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let post_html = {
+            if let Some(md) = sections.nth(0) {
+                to_html(md)
+            } else {
+                to_html(string)
+            }
+        };
+        Ok(TomlMd {
+            metadata,
+            post_html,
+        })
+    }
+}
+
+fn parse_sources(sources: Vec<String>) -> Result<Vec<TomlMd>, toml::de::Error> {
+    sources.iter().map(|string| TomlMd::parse(string)).collect()
 }
 
 fn read_sources(sources: Vec<PathBuf>) -> io::Result<Vec<String>> {
@@ -33,11 +103,13 @@ mod tests {
     use tempfile::{tempdir, TempDir};
 
     const SOURCES_COUNT: usize = 2;
+    const SOURCES_HTML: (&str, &str) = (
+        "<h1>I</h1>\n<h2>am</h2>\n<h3>Ploog</h3>\n<p>~Based~</p>\n",
+        "<h1>I</h1>\n<h2>am</h2>\n<h3>Ploog</h3>\n<p>~Based~</p>\n",
+    );
     const SOURCES: (&str, &str) = (
         r#"---
-[owner]
-name = \"Tom Preston-Werner"
-dob = 1979-05-27T07:32:00-08:00 # First class dates
+title = 'Hello world.'
 ---
 # I
 ## am
@@ -49,6 +121,17 @@ dob = 1979-05-27T07:32:00-08:00 # First class dates
 ### Ploog
 ~Based~"#,
     );
+    const INVALID_SOURCE: &str = r#"---
+title 'Hello world.'
+---"#;
+
+    fn expected_sources_parsed() -> (TomlMd, TomlMd) {
+        let (source1_html, source2_html) = SOURCES_HTML;
+        (
+            TomlMd::new(Some(Metadata::new("Hello world.")), source1_html),
+            TomlMd::new(None, source2_html),
+        )
+    }
 
     fn example_posts() -> io::Result<(TempDir, File, File)> {
         let (source1, source2) = SOURCES;
@@ -75,8 +158,44 @@ dob = 1979-05-27T07:32:00-08:00 # First class dates
         let results = example_load_posts()?;
         let (source1, source2) = SOURCES;
         assert_eq!(&results.len(), &SOURCES_COUNT);
-        assert_eq!(&results[0].trim_end(), &source1);
-        assert_eq!(&results[1].trim_end(), &source2);
+        assert_eq!(&results[0].trim_end(), &source2);
+        assert_eq!(&results[1].trim_end(), &source1);
+        Ok(())
+    }
+
+    #[test]
+    fn test_to_tomlmd() -> Result<(), toml::de::Error> {
+        let (source1, source2) = SOURCES;
+        let (obj1, obj2) = expected_sources_parsed();
+
+        assert_eq!(obj1, TomlMd::parse(&source1.to_string())?,);
+
+        assert_eq!(obj2, TomlMd::parse(&source2.to_string())?,);
+        Ok(())
+    }
+
+    #[test]
+    fn test_invalid_toml() -> Result<(), toml::de::Error> {
+        let source = INVALID_SOURCE;
+
+        match TomlMd::parse(&source.to_string()) {
+            Ok(_) => assert!(false, "Invalid toml was parsed as Ok()"),
+            _ => assert!(true),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_tomlmd() -> io::Result<()> {
+        let (dir, _post1, _post2) = example_posts()?;
+        let sources = discover_sources(dir.path())?;
+        let sources = read_sources(sources).expect("Reading failed.");
+        let sources = parse_sources(sources).expect("Parse failed.");
+        let (obj1, obj2) = expected_sources_parsed();
+
+        assert_eq!(vec![obj2, obj1], sources);
+
         Ok(())
     }
 }
