@@ -158,8 +158,8 @@ title 'Hello world.'
         let results = example_load_posts()?;
         let (source1, source2) = SOURCES;
         assert_eq!(&results.len(), &SOURCES_COUNT);
-        assert_eq!(&results[0].trim_end(), &source2);
-        assert_eq!(&results[1].trim_end(), &source1);
+        assert_eq!(&results[0].trim_end(), &source1);
+        assert_eq!(&results[1].trim_end(), &source2);
         Ok(())
     }
 
@@ -194,7 +194,7 @@ title 'Hello world.'
         let sources = parse_sources(sources).expect("Parse failed.");
         let (obj1, obj2) = expected_sources_parsed();
 
-        assert_eq!(vec![obj2, obj1], sources);
+        assert_eq!(vec![obj1, obj2], sources);
 
         Ok(())
     }
