@@ -80,7 +80,7 @@ fn parse_sources(sources: Vec<String>) -> Result<Vec<TomlMd>, toml::de::Error> {
 }
 
 fn read_sources(sources: Vec<PathBuf>) -> io::Result<Vec<String>> {
-    sorted(sources).map(|path| read_to_string(path)).collect()
+    sources.iter().map(|path| read_to_string(path)).collect()
 }
 
 fn discover_sources(path: &Path) -> io::Result<Vec<PathBuf>> {
@@ -158,10 +158,11 @@ title 'Hello world.'
     #[test]
     fn test_load_markdown() -> io::Result<()> {
         let results = example_load_posts()?;
+        let results: Vec<String> = sorted(results).collect();
         let (source1, source2) = SOURCES;
         assert_eq!(&results.len(), &SOURCES_COUNT);
-        assert_eq!(&results[0].trim_end(), &source1);
-        assert_eq!(&results[1].trim_end(), &source2);
+        assert_eq!(&results[1].trim_end(), &source1);
+        assert_eq!(&results[0].trim_end(), &source2);
         Ok(())
     }
 
@@ -192,10 +193,11 @@ title 'Hello world.'
         let (dir, _post1, _post2) = example_posts()?;
         let sources = discover_sources(dir.path())?;
         let sources = read_sources(sources).expect("Reading failed.");
+        let sources: Vec<String> = sorted(sources).collect();
         let sources = parse_sources(sources).expect("Parse failed.");
         let (obj1, obj2) = expected_sources_parsed();
 
-        assert_eq!(vec![obj1, obj2], sources);
+        assert_eq!(vec![obj2, obj1], sources);
 
         Ok(())
     }
