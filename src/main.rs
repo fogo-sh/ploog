@@ -1,7 +1,6 @@
-use itertools::sorted;
 use pulldown_cmark::{html, Options, Parser};
 use serde::Deserialize;
-use std::fs::{self, read_to_string};
+use std::fs::{self, create_dir, read_to_string, File};
 
 use std::io;
 
@@ -21,12 +20,14 @@ fn to_html(input: &str) -> String {
 #[derive(Deserialize, Debug, PartialEq)]
 struct Metadata {
     title: String,
+    slug: String,
 }
 
 impl Metadata {
-    fn new(title: &str) -> Metadata {
+    fn new(title: &str, slug: &str) -> Metadata {
         Metadata {
             title: title.to_string(),
+            slug: slug.to_string(),
         }
     }
 }
@@ -90,15 +91,36 @@ fn discover_sources(path: &Path) -> io::Result<Vec<PathBuf>> {
     Ok(entries)
 }
 
+fn generate_site(posts: Vec<TomlMd>) -> io::Result<()> {
+    match create_dir("public") {
+        Ok(_) => {}
+        Err(error) => {
+            if error.kind() != io::ErrorKind::AlreadyExists {
+                return Err(error);
+            }
+        }
+    }
+
+    for 
+    let File::create("public/foo.txt")?;
+    writeln!(post1, "{}", source1)?;
+
+
+    Ok(())
+}
+
 fn main() -> io::Result<()> {
-    let source_list = discover_sources(Path::new("./posts"))?;
-    let read_sources = read_sources(source_list);
+    let source_list = discover_sources(Path::new("posts"))?;
+    let read_sources = read_sources(source_list)?;
+    let posts = parse_sources(read_sources)?;
+    generate_site(posts)?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use itertools::sorted;
     use std::fs::File;
     use std::io::{self, Write};
     use std::writeln;
@@ -112,6 +134,7 @@ mod tests {
     const SOURCES: (&str, &str) = (
         r#"---
 title = 'Hello world.'
+slug = 'hello'
 ---
 # I
 ## am
@@ -130,7 +153,7 @@ title 'Hello world.'
     fn expected_sources_parsed() -> (TomlMd, TomlMd) {
         let (source1_html, source2_html) = SOURCES_HTML;
         (
-            TomlMd::new(Some(Metadata::new("Hello world.")), source1_html),
+            TomlMd::new(Some(Metadata::new("Hello world.", "hello")), source1_html),
             TomlMd::new(None, source2_html),
         )
     }
@@ -139,11 +162,11 @@ title 'Hello world.'
         let (source1, source2) = SOURCES;
 
         let dir = tempdir()?;
-        let file_path1 = dir.path().join("./post1.md");
+        let file_path1 = dir.path().join("post1.md");
         let mut post1 = File::create(file_path1)?;
         writeln!(post1, "{}", source1)?;
 
-        let file_path2 = dir.path().join("./post2.md");
+        let file_path2 = dir.path().join("post2.md");
         let mut post2 = File::create(file_path2)?;
         writeln!(post2, "{}", source2)?;
         Ok((dir, post1, post2))
