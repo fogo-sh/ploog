@@ -209,7 +209,8 @@ pub fn discover_sources(path: &Path) -> io::Result<Vec<PathBuf>> {
     Ok(entries)
 }
 
-pub fn generate_site(posts: Vec<TomlMd>) -> io::Result<()> {
+// TODO: handle tests for index_style being on/off
+pub fn generate_site(posts: Vec<TomlMd>, index_style: bool) -> io::Result<()> {
     match create_dir("public") {
         Ok(_) => {}
         Err(error) => {
@@ -224,7 +225,19 @@ pub fn generate_site(posts: Vec<TomlMd>) -> io::Result<()> {
         post_html,
     } in posts
     {
-        let mut post = File::create(format!("public/{}", metadata.slug))?;
+        let mut post = if index_style {
+            match create_dir(format!("public/{}", &metadata.slug)) {
+                Ok(_) => {}
+                Err(error) => {
+                    if error.kind() != io::ErrorKind::AlreadyExists {
+                        return Err(error);
+                    }
+                }
+            }
+            File::create(format!("public/{}/index.html", metadata.slug))?
+        } else {
+            File::create(format!("public/{}.html", metadata.slug))?
+        };
         writeln!(post, "{}", post_html)?;
     }
 
