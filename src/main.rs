@@ -1,8 +1,8 @@
 use pulldown_cmark::{html, Options, Parser};
 use serde::Deserialize;
+use std::cmp::Ordering;
 use std::fs::{self, create_dir, read_to_string, File};
-
-use std::io;
+use std::io::{self, Write};
 
 use std::path::{Path, PathBuf};
 
@@ -23,6 +23,98 @@ struct Metadata {
     slug: String,
 }
 
+#[derive(Debug)]
+enum InvalidFileNameKind {
+    NotUTF8,
+    NoExtension,
+}
+
+#[derive(Debug)]
+enum ParsingErrorKind {
+    InvalidFileName(InvalidFileNameKind),
+    MissingMetadata,
+}
+
+#[derive(Debug)]
+struct ParsingError {
+    inner: ParsingErrorKind,
+}
+
+impl ParsingError {
+    fn new(inner: ParsingErrorKind) -> ParsingError {
+        ParsingError { inner }
+    }
+}
+
+type ParserResult<T> = std::result::Result<T, ParserError>;
+
+#[derive(Debug)]
+struct ParserError {
+    toml_error: Option<toml::de::Error>,
+    io_error: Option<io::Error>,
+    parsing_error: Option<ParsingError>,
+}
+
+impl From<io::Error> for ParserError {
+    fn from(io_error: io::Error) -> ParserError {
+        ParserError {
+            toml_error: None,
+            io_error: Some(io_error),
+            parsing_error: None,
+        }
+    }
+}
+
+impl From<toml::de::Error> for ParserError {
+    fn from(toml_error: toml::de::Error) -> ParserError {
+        ParserError {
+            toml_error: Some(toml_error),
+            io_error: None,
+            parsing_error: None,
+        }
+    }
+}
+
+impl From<ParsingError> for ParserError {
+    fn from(parsing_error: ParsingError) -> ParserError {
+        ParserError {
+            toml_error: None,
+            io_error: None,
+            parsing_error: Some(parsing_error),
+        }
+    }
+}
+
+impl std::fmt::Display for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "failed to parse")
+    }
+}
+
+#[derive(Eq, Deserialize, Debug, PartialEq)]
+struct ParserInput {
+    input_path: Option<PathBuf>,
+    string: String,
+}
+
+impl Ord for ParserInput {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.input_path.cmp(&other.input_path)
+    }
+}
+
+impl PartialOrd for ParserInput {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl ParserInput {
+    fn new(input_path: Option<PathBuf>, string: String) -> ParserInput {
+        ParserInput { input_path, string }
+    }
+}
+
 impl Metadata {
     fn new(title: &str, slug: &str) -> Metadata {
         Metadata {
@@ -32,56 +124,81 @@ impl Metadata {
     }
 }
 
+fn get_metadata(input_path: Option<PathBuf>, string: &str) -> ParserResult<Metadata> {
+    let default_metadata = input_path.map(|p| {
+        let out = p
+            .file_stem()
+            .ok_or_else(|| {
+                ParsingError::new(ParsingErrorKind::InvalidFileName(
+                    InvalidFileNameKind::NoExtension,
+                ))
+            })?
+            .to_str()
+            .ok_or_else(|| {
+                ParsingError::new(ParsingErrorKind::InvalidFileName(
+                    InvalidFileNameKind::NotUTF8,
+                ))
+            })?;
+        Ok(Metadata::new(out, out))
+    });
+    let first_line = string.lines().next();
+    let mut sections = string.split("---");
+    if let Some(line) = first_line {
+        if "---" == line {
+            if let Some(toml) = sections.nth(1) {
+                let toml: Metadata = toml::from_str(toml)?;
+                return Ok(toml);
+            }
+        }
+    }
+
+    default_metadata.ok_or_else(|| ParsingError::new(ParsingErrorKind::MissingMetadata))?
+}
+
 #[derive(Deserialize, Debug, PartialEq)]
 struct TomlMd {
-    metadata: Option<Metadata>,
+    metadata: Metadata,
     post_html: String,
 }
 
 impl TomlMd {
-    fn new(metadata: Option<Metadata>, post_html: &str) -> TomlMd {
+    fn new(metadata: Metadata, post_html: &str) -> TomlMd {
         TomlMd {
             metadata,
             post_html: post_html.to_string(),
         }
     }
 
-    fn parse(string: &String) -> Result<TomlMd, toml::de::Error> {
-        let first_line = string.lines().next();
-        let mut sections = string.split("---").into_iter();
-        let metadata: Option<Metadata> = if let Some(line) = first_line {
-            if "---" == line {
-                if let Some(toml) = sections.nth(1) {
-                    Some(toml::from_str(toml)?)
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        } else {
-            None
-        };
+    fn parse(input: ParserInput) -> ParserResult<TomlMd> {
+        let ParserInput { input_path, string } = input;
+        let metadata: ParserResult<Metadata> = get_metadata(input_path, &string);
+        let mut sections = string.split("---");
         let post_html = {
-            if let Some(md) = sections.nth(0) {
+            if let Some(md) = sections.nth(2) {
                 to_html(md)
             } else {
-                to_html(string)
+                to_html(&string)
             }
         };
         Ok(TomlMd {
-            metadata,
+            metadata: metadata?,
             post_html,
         })
     }
 }
 
-fn parse_sources(sources: Vec<String>) -> Result<Vec<TomlMd>, toml::de::Error> {
-    sources.iter().map(|string| TomlMd::parse(string)).collect()
+fn parse_sources(sources: Vec<ParserInput>) -> ParserResult<Vec<TomlMd>> {
+    sources.into_iter().map(TomlMd::parse).collect()
 }
 
-fn read_sources(sources: Vec<PathBuf>) -> io::Result<Vec<String>> {
-    sources.iter().map(|path| read_to_string(path)).collect()
+fn read_sources(sources: Vec<PathBuf>) -> ParserResult<Vec<ParserInput>> {
+    sources
+        .into_iter()
+        .map(|path| {
+            let read = read_to_string(&path);
+            Ok(ParserInput::new(Some(path), read?))
+        })
+        .collect()
 }
 
 fn discover_sources(path: &Path) -> io::Result<Vec<PathBuf>> {
@@ -101,15 +218,19 @@ fn generate_site(posts: Vec<TomlMd>) -> io::Result<()> {
         }
     }
 
-    for 
-    let File::create("public/foo.txt")?;
-    writeln!(post1, "{}", source1)?;
-
+    for TomlMd {
+        metadata,
+        post_html,
+    } in posts
+    {
+        let mut post = File::create(format!("public/{}", metadata.slug))?;
+        writeln!(post, "{}", post_html)?;
+    }
 
     Ok(())
 }
 
-fn main() -> io::Result<()> {
+fn main() -> ParserResult<()> {
     let source_list = discover_sources(Path::new("posts"))?;
     let read_sources = read_sources(source_list)?;
     let posts = parse_sources(read_sources)?;
@@ -122,7 +243,6 @@ mod tests {
     use super::*;
     use itertools::sorted;
     use std::fs::File;
-    use std::io::{self, Write};
     use std::writeln;
     use tempfile::{tempdir, TempDir};
 
@@ -153,8 +273,8 @@ title 'Hello world.'
     fn expected_sources_parsed() -> (TomlMd, TomlMd) {
         let (source1_html, source2_html) = SOURCES_HTML;
         (
-            TomlMd::new(Some(Metadata::new("Hello world.", "hello")), source1_html),
-            TomlMd::new(None, source2_html),
+            TomlMd::new(Metadata::new("Hello world.", "hello"), source1_html),
+            TomlMd::new(Metadata::new("post2", "post2"), source2_html),
         )
     }
 
@@ -172,40 +292,50 @@ title 'Hello world.'
         Ok((dir, post1, post2))
     }
 
-    fn example_load_posts() -> io::Result<Vec<String>> {
+    fn example_load_posts() -> ParserResult<Vec<ParserInput>> {
         let (dir, _post1, _post2) = example_posts()?;
-        let mut sources = discover_sources(dir.path())?;
+        read_sources(discover_sources(dir.path())?)
+    }
+
+    fn invalid_post() -> io::Result<(TempDir, File)> {
+        let source = INVALID_SOURCE;
+
+        let dir = tempdir()?;
+
+        let file_path = dir.path().join("post2.md");
+        let mut post = File::create(file_path)?;
+        writeln!(post, "{}", source)?;
+        Ok((dir, post))
+    }
+
+    fn invalid_load_post() -> ParserResult<Vec<ParserInput>> {
+        let (dir, _post1) = invalid_post()?;
+        let sources: Vec<PathBuf> = discover_sources(dir.path())?;
         read_sources(sources)
     }
 
     #[test]
-    fn test_load_markdown() -> io::Result<()> {
+    fn test_load_markdown() -> ParserResult<()> {
         let results = example_load_posts()?;
-        let results: Vec<String> = sorted(results).collect();
+        let results: Vec<ParserInput> = sorted(results).collect();
         let (source1, source2) = SOURCES;
         assert_eq!(&results.len(), &SOURCES_COUNT);
-        assert_eq!(&results[1].trim_end(), &source1);
-        assert_eq!(&results[0].trim_end(), &source2);
+        assert_eq!(&results[0].string.trim_end(), &source1);
+        assert_eq!(&results[1].string.trim_end(), &source2);
         Ok(())
     }
 
     #[test]
-    fn test_to_tomlmd() -> Result<(), toml::de::Error> {
-        let (source1, source2) = SOURCES;
-        let (obj1, obj2) = expected_sources_parsed();
-
-        assert_eq!(obj1, TomlMd::parse(&source1.to_string())?);
-        assert_eq!(obj2, TomlMd::parse(&source2.to_string())?);
-        Ok(())
-    }
-
-    #[test]
-    fn test_invalid_toml() -> Result<(), toml::de::Error> {
-        let source = INVALID_SOURCE;
-
-        match TomlMd::parse(&source.to_string()) {
-            Ok(_) => assert!(false, "Invalid toml was parsed as Ok()"),
-            _ => assert!(true),
+    fn test_invalid_toml() -> ParserResult<()> {
+        if TomlMd::parse(
+            invalid_load_post()?
+                .into_iter()
+                .next()
+                .expect("File didn't load."),
+        )
+        .is_ok()
+        {
+            panic!(r#"Invalid toml was parsed as Ok()"#)
         }
 
         Ok(())
@@ -216,11 +346,11 @@ title 'Hello world.'
         let (dir, _post1, _post2) = example_posts()?;
         let sources = discover_sources(dir.path())?;
         let sources = read_sources(sources).expect("Reading failed.");
-        let sources: Vec<String> = sorted(sources).collect();
+        let sources: Vec<ParserInput> = sorted(sources).collect();
         let sources = parse_sources(sources).expect("Parse failed.");
         let (obj1, obj2) = expected_sources_parsed();
 
-        assert_eq!(vec![obj2, obj1], sources);
+        assert_eq!(vec![obj1, obj2], sources);
 
         Ok(())
     }
