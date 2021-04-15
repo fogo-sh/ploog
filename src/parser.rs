@@ -209,13 +209,21 @@ pub fn discover_sources(path: &Path) -> io::Result<Vec<PathBuf>> {
     Ok(entries)
 }
 
-// TODO: handle tests for index_style being on/off
-pub fn generate_site(posts: Vec<TomlMd>, index_style: bool) -> io::Result<()> {
-    match create_dir("public") {
+pub fn generate_site(
+    posts: &[TomlMd],
+    dir: Option<PathBuf>,
+    index_style: bool,
+) -> ParserResult<()> {
+    let path = match dir {
+        Some(present) => present,
+        None => "public".into(),
+    };
+
+    match create_dir(&path) {
         Ok(_) => {}
         Err(error) => {
             if error.kind() != io::ErrorKind::AlreadyExists {
-                return Err(error);
+                return Err(error.into());
             }
         }
     }
@@ -226,17 +234,35 @@ pub fn generate_site(posts: Vec<TomlMd>, index_style: bool) -> io::Result<()> {
     } in posts
     {
         let mut post = if index_style {
-            match create_dir(format!("public/{}", &metadata.slug)) {
+            match create_dir(format!(
+                "{}/{}",
+                path.to_str().ok_or_else(|| ParsingError::new(
+                    ParsingErrorKind::InvalidFileName(InvalidFileNameKind::NotUTF8,)
+                ))?,
+                &metadata.slug
+            )) {
                 Ok(_) => {}
                 Err(error) => {
                     if error.kind() != io::ErrorKind::AlreadyExists {
-                        return Err(error);
+                        return Err(error.into());
                     }
                 }
             }
-            File::create(format!("public/{}/index.html", metadata.slug))?
+            File::create(format!(
+                "{}/{}/index.html",
+                path.to_str().ok_or_else(|| ParsingError::new(
+                    ParsingErrorKind::InvalidFileName(InvalidFileNameKind::NotUTF8,)
+                ))?,
+                metadata.slug
+            ))?
         } else {
-            File::create(format!("public/{}.html", metadata.slug))?
+            File::create(format!(
+                "{}/{}.html",
+                path.to_str().ok_or_else(|| ParsingError::new(
+                    ParsingErrorKind::InvalidFileName(InvalidFileNameKind::NotUTF8,)
+                ))?,
+                metadata.slug
+            ))?
         };
         writeln!(post, "{}", post_html)?;
     }
@@ -320,6 +346,15 @@ title 'Hello world.'
         read_sources(sources)
     }
 
+    fn generate_example_site(index_style: bool) -> ParserResult<Vec<fs::DirEntry>> {
+        let results = example_load_posts()?;
+        let results: Vec<ParserInput> = sorted(results).collect();
+        let sources = parse_sources(results)?;
+        let dir = tempdir()?;
+        generate_site(&sources, Some(dir.path().to_owned()), index_style)?;
+        Ok(fs::read_dir(dir.path())?.collect::<io::Result<Vec<fs::DirEntry>>>()?)
+    }
+
     #[test]
     fn test_load_markdown() -> ParserResult<()> {
         let results = example_load_posts()?;
@@ -328,6 +363,34 @@ title 'Hello world.'
         assert_eq!(&results.len(), &SOURCES_COUNT);
         assert_eq!(&results[0].string.trim_end(), &source1);
         assert_eq!(&results[1].string.trim_end(), &source2);
+        Ok(())
+    }
+
+    #[test]
+    fn test_generate_html_index_style() -> ParserResult<()> {
+        let generate_index_style = generate_example_site(true)?;
+        assert_eq!(generate_index_style.len(), 2);
+        assert!(generate_index_style
+            .iter()
+            .map(|e| Ok(e.file_type()?))
+            .collect::<ParserResult<Vec<_>>>()?
+            .iter()
+            .all(|e| e.is_dir()));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_generate_html_file_name_style() -> ParserResult<()> {
+        let generate_index_style = generate_example_site(false)?;
+        assert_eq!(generate_index_style.len(), 2);
+        assert!(!generate_index_style
+            .iter()
+            .map(|e| Ok(e.file_type()?))
+            .collect::<ParserResult<Vec<_>>>()?
+            .iter()
+            .any(|e| e.is_dir()));
+
         Ok(())
     }
 
