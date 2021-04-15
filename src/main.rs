@@ -10,6 +10,10 @@ use server::*;
 fn main() -> ParserResult<()> {
     let matches = cli::matches();
 
+    // TODO: live reload webpack dev server
+    // TODO: preact impl
+    // TODO: logos impl?
+    // TODO: fontawesome impl
     let source_list = discover_sources(Path::new("posts"))?;
     let read_sources = read_sources(source_list)?;
     let posts = parse_sources(read_sources)?;
