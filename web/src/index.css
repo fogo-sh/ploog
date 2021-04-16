@@ -1,0 +1,13 @@
+:root {
+  --bg: #594236;
+  --brand1: #48acf0;
+}
+
+body {
+  background-color: var(--bg);
+}
+
+.logo {
+  width: 300px;
+  color: var(--brand1);
+}
