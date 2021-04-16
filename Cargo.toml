@@ -17,6 +17,7 @@ itertools = "0.8.0"
 actix-web = "3"
 actix-web-static-files = { version = "3.0", features = [ "change-detection" ] }
 actix-files = "0.5.0"
+notify = { version = "5.0.0-pre.4", features = ["serde"] }
 
 [build-dependencies]
 actix-web-static-files = { version = "3.0", features = [ "change-detection" ] }
