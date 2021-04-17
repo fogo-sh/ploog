@@ -5,7 +5,14 @@ use std::io::{self, Write};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
+use crate::PloogInner;
 use std::cmp::Ordering;
+
+macro_rules! ploog_template {
+    () => {
+        "<!DOCTYPE html lang=\"en\"><html><head><meta charset=\"UTF-8\"></head><body>{}<body><html>"
+    };
+}
 
 fn to_html(input: &str) -> String {
     let mut options = Options::empty();
@@ -163,6 +170,7 @@ pub struct TomlMd {
 }
 
 impl TomlMd {
+    #[allow(dead_code)]
     pub fn new(metadata: Metadata, post_html: &str) -> TomlMd {
         TomlMd {
             metadata,
@@ -183,10 +191,13 @@ impl TomlMd {
         };
         Ok(TomlMd {
             metadata: metadata?,
-            post_html,
+            post_html: format!(ploog_template!(), post_html),
         })
     }
 }
+
+// TODO: Convert these to types producing eachother.
+// let generated_site = discover_sources().read().parse()?
 
 pub fn parse_sources(sources: Vec<ParserInput>) -> ParserResult<Vec<TomlMd>> {
     sources.into_iter().map(TomlMd::parse).collect()
@@ -209,14 +220,14 @@ pub fn discover_sources(path: &Path) -> io::Result<Vec<PathBuf>> {
     Ok(entries)
 }
 
-pub fn generate_site(
-    posts: &[TomlMd],
-    dir: Option<PathBuf>,
+pub fn generate_site<'a>(
+    posts: &'a [TomlMd],
+    dir: Option<&Path>,
     index_style: bool,
-) -> ParserResult<()> {
+) -> ParserResult<&'a [TomlMd]> {
     let path = match dir {
         Some(present) => present,
-        None => "public".into(),
+        None => Path::new("public"),
     };
 
     match create_dir(&path) {
@@ -267,7 +278,27 @@ pub fn generate_site(
         writeln!(post, "{}", post_html)?;
     }
 
-    Ok(())
+    Ok(posts)
+}
+
+pub trait GenerateSite {
+    fn generate(&self) -> ParserResult<Vec<TomlMd>>;
+}
+
+impl GenerateSite for PloogInner {
+    fn generate(&self) -> ParserResult<Vec<TomlMd>> {
+        let source_list = discover_sources(&self.source_path)?;
+        let read_sources = read_sources(source_list)?;
+        let posts = parse_sources(read_sources)?;
+        let generated = generate_site(&posts, Some(&self.output_path), !self.html_style)?;
+        for tomlmd in generated {
+            println!(
+                "emitted: {} at /{}",
+                tomlmd.metadata.title, tomlmd.metadata.slug
+            );
+        }
+        Ok(posts)
+    }
 }
 
 #[cfg(test)]
@@ -305,8 +336,14 @@ title 'Hello world.'
     fn expected_sources_parsed() -> (TomlMd, TomlMd) {
         let (source1_html, source2_html) = SOURCES_HTML;
         (
-            TomlMd::new(Metadata::new("Hello world.", "hello"), source1_html),
-            TomlMd::new(Metadata::new("post2", "post2"), source2_html),
+            TomlMd::new(
+                Metadata::new("Hello world.", "hello"),
+                &format!(ploog_template!(), source1_html),
+            ),
+            TomlMd::new(
+                Metadata::new("post2", "post2"),
+                &format!(ploog_template!(), source2_html),
+            ),
         )
     }
 
@@ -351,7 +388,7 @@ title 'Hello world.'
         let results: Vec<ParserInput> = sorted(results).collect();
         let sources = parse_sources(results)?;
         let dir = tempdir()?;
-        generate_site(&sources, Some(dir.path().to_owned()), index_style)?;
+        generate_site(&sources, Some(dir.path()), index_style)?;
         Ok(fs::read_dir(dir.path())?.collect::<io::Result<Vec<fs::DirEntry>>>()?)
     }
 

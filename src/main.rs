@@ -1,19 +1,57 @@
+mod cli;
+mod live;
 mod parser;
 mod server;
 
-use std::path::Path;
+use std::{path::PathBuf, sync::Arc};
 
+use clap::ArgMatches;
+use live::Watch;
 use parser::*;
 use server::*;
 
+#[derive(Clone)]
+pub(crate) struct PloogInner {
+    output_path: PathBuf,
+    source_path: PathBuf,
+    watch: bool,
+    serve: bool,
+    console: bool,
+    html_style: bool,
+}
+
+pub struct Ploog {
+    inner: Arc<PloogInner>,
+}
+
+impl From<ArgMatches> for Ploog {
+    fn from(args: ArgMatches) -> Self {
+        Ploog {
+            inner: Arc::new(PloogInner {
+                output_path: PathBuf::from(&args.value_of("output").expect("No output dir.")),
+                source_path: PathBuf::from(&args.value_of("source").expect("No source dir.")),
+                watch: args.is_present("watch"),
+                serve: args.is_present("server"),
+                console: args.is_present("console"),
+                html_style: args.is_present("html_slugs"),
+            }),
+        }
+    }
+}
+
 fn main() -> ParserResult<()> {
-    let source_list = discover_sources(Path::new("posts"))?;
-    let read_sources = read_sources(source_list)?;
-    let posts = parse_sources(read_sources)?;
-    // TODO: handle true/false via cli
-    generate_site(&posts, Some("public".into()), true)?;
-    // TODO: handle server via cli
-    // TODO: handle error in `ParserResult`
-    server();
+    let matches = cli::matches();
+
+    // TODO: live reload webpack dev server
+    // TODO: preact impl
+    // TODO: logos impl?
+    // TODO: fontawesome impl
+    let app: Ploog = matches.into();
+
+    // Removing this let binding causes hot reloading to not work.
+    #[allow(unused_variables)]
+    let watch = app.watch().unwrap();
+
+    server(app)?;
     Ok(())
 }
