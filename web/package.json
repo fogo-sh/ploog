@@ -23,8 +23,7 @@
     "dev": "webpack serve --port 8081 --mode=development"
   },
   "dependencies": {
-    "preact": "^10.5.13",
-    "svg-inline-loader": "^0.8.2"
+    "preact": "^10.5.13"
   },
   "eslintConfig": {
     "extends": "preact"

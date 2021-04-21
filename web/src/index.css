@@ -1,13 +1,74 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto&display=swap");
+
 :root {
-  --bg: #594236;
-  --brand1: #48acf0;
+  --text: #ffffff;
+  --bg: #303030;
+  --bg-dark: #222222;
+  --button1: #1fa1ff;
+}
+
+html {
+  font-family: "Roboto", sans-serif;
+}
+
+header {
+  background-color: var(--bg-dark);
+  height: 8rem;
+  padding: 0 2.5rem;
+  align-items: center;
+  display: flex;
 }
 
 body {
+  margin: 0;
   background-color: var(--bg);
 }
 
+button {
+  font-weight: 300;
+  font-size: 1rem;
+  color: var(--text);
+  background-color: var(--button1);
+  padding: 0 0.75rem;
+  border-radius: 0.5rem;
+  border: none;
+}
+
+button.notActive {
+  background-color: var(--bg-dark);
+  border: var(--button1) 3px solid;
+}
+
 .logo {
-  width: 300px;
+  display: flex;
   color: var(--brand1);
+}
+
+.editor-container {
+  margin: 1rem;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-rows: 2em 1fr;
+  gap: 1rem;
+  grid-template-areas:
+    "nav nav nav"
+    "editorNav editor publish";
+}
+
+.nav {
+  display: flex;
+  gap: 0.5rem;
+  grid-area: nav;
+}
+
+.editor {
+  grid-area: editor;
+}
+
+.editorNav {
+  grid-area: editorNav;
+}
+
+.publish {
+  grid-area: publish;
 }
