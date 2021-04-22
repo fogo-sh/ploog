@@ -1,7 +1,7 @@
 import "./index.css";
 import { h, render } from "preact";
 import { useState } from "preact/hooks";
-import Logo from "./Logo.jsx";
+import { Editor, Logo, NavSidebar, PublishControls } from "./components";
 
 const App = () => {
   const [state, setState] = useState(0);
@@ -23,14 +23,29 @@ const App = () => {
           </button>
         </div>
         <div className="editor">
-          <button onClick={() => setState((x) => x + 1)}>
-            Clicked {state} times
-          </button>
+          <Editor />
         </div>
         <div className="publish">
-          <button onClick={() => setState((x) => x + 1)}>
-            Clicked {state} times
-          </button>
+          <div className="controlCard">
+            <div className="title">Post - ...</div>
+            <div className="controls">
+              <button
+                className="notActive"
+                onClick={() => setState((x) => x + 1)}
+              >
+                Save Draft
+              </button>
+              <button className="notActive">Preview</button>
+            </div>
+            <div className="statuses">
+              <div className="title">☀️ Status: ...</div>
+              <div className="title">🏙️ Visibility - ...</div>
+              <div className="title">📅 Publish - ...</div>
+            </div>
+          </div>
+          <div className="controlCard publishButton">
+            <button>Publish</button>
+          </div>
         </div>
       </div>
     </div>

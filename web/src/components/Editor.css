@@ -1,0 +1,50 @@
+.editor {
+  padding: 1rem;
+  grid-area: editor;
+  background: var(--bg-white);
+}
+
+.leaf-bold {
+  font-weight: bold;
+}
+
+.leaf-italic {
+  font-style: italic;
+}
+
+.leaf-underline {
+  text-decoration: underline;
+}
+
+.leaf-title {
+  display: inline-block;
+  font-weight: bold;
+  font-size: 20px;
+  margin: 20px 0 10px 0;
+}
+
+.leaf-list {
+  padding-left: 10px;
+  font-size: 20px;
+  line-height: 10px;
+}
+
+.leaf-hr {
+  display: block;
+  text-align: center;
+  border-bottom: 2px solid #ddd;
+}
+
+.leaf-blockquote {
+  display: inline-block;
+  border-left: 2px solid #ddd;
+  padding-left: 10px;
+  color: #aaa;
+  font-style: italic;
+}
+
+.leaf-code {
+  font-family: monospace;
+  background-color: #eee;
+  padding: 3px;
+}
