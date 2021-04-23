@@ -3,16 +3,15 @@ const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 module.exports = {
-  entry: "./src/index.js",
+  entry: "./src/index.jsx",
   module: {
     rules: [
       {
         test: /\.css$/i,
         use: ["style-loader", "css-loader", "postcss-loader"],
       },
-      { test: /\.svg$/, loader: "svg-inline-loader" },
       {
-        test: /\.m?js$/,
+        test: /\.m?jsx$/,
         exclude: /node_modules/,
         use: {
           loader: "babel-loader",
@@ -22,6 +21,12 @@ module.exports = {
         },
       },
     ],
+  },
+  resolve: {
+    alias: {
+      react: "preact/compat",
+      "react-dom": "preact/compat",
+    },
   },
   plugins: [
     new CleanWebpackPlugin(),

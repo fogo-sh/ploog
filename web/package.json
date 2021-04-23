@@ -23,8 +23,12 @@
     "dev": "webpack serve --port 8081 --mode=development"
   },
   "dependencies": {
+    "classnames": "^2.3.1",
     "preact": "^10.5.13",
-    "svg-inline-loader": "^0.8.2"
+    "prismjs": "^1.23.0",
+    "slate": "^0.62.0",
+    "slate-history": "^0.62.0",
+    "slate-react": "^0.62.0"
   },
   "eslintConfig": {
     "extends": "preact"

@@ -1,13 +1,82 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto&display=swap");
+@import "./components";
+
 :root {
-  --bg: #594236;
-  --brand1: #48acf0;
+  --text: #ffffff;
+  --bg: #303030;
+  --bg-dark: #222222;
+  --bg-white: #ffffff;
+  --logo: #1fa1ff;
+  --button1: #1fa1ff;
+  --font-size-1: 1rem;
+  --font-size-2: 1rem;
+  --border-radius-1: 0.5rem;
+  --border-radius-2: 1rem;
+}
+
+html {
+  font-family: "Roboto", sans-serif;
+  font-size: var(--font-size-1);
+}
+
+header {
+  background-color: var(--bg-dark);
+  height: 4rem;
+  padding: 0 2.5rem;
+  align-items: center;
+  display: flex;
 }
 
 body {
+  margin: 0;
   background-color: var(--bg);
 }
 
+button {
+  cursor: pointer;
+  font-weight: 300;
+  font-size: 1rem;
+  color: var(--text);
+  background-color: var(--button1);
+  padding: 0 0.75rem;
+  height: 2rem;
+  border-radius: var(--border-radius-1);
+  border: none;
+}
+
+button.notActive {
+  background-color: var(--bg-dark);
+  border: var(--button1) 3px solid;
+}
+
 .logo {
-  width: 300px;
-  color: var(--brand1);
+  display: flex;
+  color: var(--logo);
+  height: 3rem;
+}
+
+.editor-container {
+  max-width: 70rem;
+  margin: 1rem auto;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-rows: 2em 1fr;
+  gap: 1rem;
+  grid-template-areas:
+    "nav nav nav"
+    "editorNav editor publish";
+}
+
+.nav {
+  display: flex;
+  gap: 0.5rem;
+  grid-area: nav;
+}
+
+.editor {
+  grid-area: editor;
+}
+
+.editorNav {
+  grid-area: editorNav;
 }
