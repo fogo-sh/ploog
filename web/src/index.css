@@ -73,10 +73,6 @@ button.notActive {
   grid-area: nav;
 }
 
-.editor {
-  grid-area: editor;
-}
-
 .editorNav {
   grid-area: editorNav;
 }

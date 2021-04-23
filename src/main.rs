@@ -42,10 +42,6 @@ impl From<ArgMatches> for Ploog {
 fn main() -> ParserResult<()> {
     let matches = cli::matches();
 
-    // TODO: live reload webpack dev server
-    // TODO: preact impl
-    // TODO: logos impl?
-    // TODO: fontawesome impl
     let app: Ploog = matches.into();
 
     // Removing this let binding causes hot reloading to not work.
