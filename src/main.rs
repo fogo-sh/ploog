@@ -1,4 +1,5 @@
 mod cli;
+mod err;
 mod live;
 mod parser;
 mod server;
@@ -6,6 +7,7 @@ mod server;
 use std::{path::PathBuf, sync::Arc};
 
 use clap::ArgMatches;
+use err::*;
 use live::Watch;
 use parser::*;
 use server::*;

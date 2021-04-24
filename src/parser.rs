@@ -2,10 +2,10 @@ use pulldown_cmark::{html, Options, Parser};
 use std::fs::{self, create_dir, read_to_string, File};
 use std::io::{self, Write};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-use crate::PloogInner;
+use crate::*;
 use std::cmp::Ordering;
 
 macro_rules! ploog_template {
@@ -25,7 +25,7 @@ fn to_html(input: &str) -> String {
     html_output
 }
 
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Metadata {
     pub title: String,
     pub slug: String,
@@ -37,74 +37,6 @@ impl Metadata {
             title: title.to_string(),
             slug: slug.to_string(),
         }
-    }
-}
-
-#[derive(Debug)]
-pub enum InvalidFileNameKind {
-    NotUTF8,
-    NoExtension,
-}
-
-#[derive(Debug)]
-pub enum ParsingErrorKind {
-    InvalidFileName(InvalidFileNameKind),
-    MissingMetadata,
-}
-
-#[derive(Debug)]
-pub struct ParsingError {
-    inner: ParsingErrorKind,
-}
-
-impl ParsingError {
-    pub fn new(inner: ParsingErrorKind) -> ParsingError {
-        ParsingError { inner }
-    }
-}
-
-pub type ParserResult<T> = std::result::Result<T, ParserError>;
-
-#[derive(Debug)]
-pub struct ParserError {
-    toml_error: Option<toml::de::Error>,
-    io_error: Option<io::Error>,
-    parsing_error: Option<ParsingError>,
-}
-
-impl From<io::Error> for ParserError {
-    fn from(io_error: io::Error) -> ParserError {
-        ParserError {
-            toml_error: None,
-            io_error: Some(io_error),
-            parsing_error: None,
-        }
-    }
-}
-
-impl From<toml::de::Error> for ParserError {
-    fn from(toml_error: toml::de::Error) -> ParserError {
-        ParserError {
-            toml_error: Some(toml_error),
-            io_error: None,
-            parsing_error: None,
-        }
-    }
-}
-
-impl From<ParsingError> for ParserError {
-    fn from(parsing_error: ParsingError) -> ParserError {
-        ParserError {
-            toml_error: None,
-            io_error: None,
-            parsing_error: Some(parsing_error),
-        }
-    }
-}
-
-impl std::fmt::Display for ParserError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "failed to parse")
     }
 }
 
@@ -163,7 +95,7 @@ fn get_metadata(input_path: Option<PathBuf>, string: &str) -> ParserResult<Metad
     default_metadata.ok_or_else(|| ParsingError::new(ParsingErrorKind::MissingMetadata))?
 }
 
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct TomlMd {
     pub metadata: Metadata,
     pub post_html: String,
@@ -293,7 +225,7 @@ impl GenerateSite for PloogInner {
         let generated = generate_site(&posts, Some(&self.output_path), !self.html_style)?;
         for tomlmd in generated {
             println!(
-                "emitted: {} at /{}",
+                "emitted: \"{}\" at /{}",
                 tomlmd.metadata.title, tomlmd.metadata.slug
             );
         }
