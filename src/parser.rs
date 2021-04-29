@@ -25,7 +25,7 @@ fn to_html(input: &str) -> String {
     html_output
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Metadata {
     pub title: String,
     pub slug: String,
@@ -95,7 +95,7 @@ fn get_metadata(input_path: Option<PathBuf>, string: &str) -> ParserResult<Metad
     default_metadata.ok_or_else(|| ParsingError::new(ParsingErrorKind::MissingMetadata))?
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct TomlMd {
     pub metadata: Metadata,
     pub post_html: String,
