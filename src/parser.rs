@@ -8,12 +8,6 @@ use std::path::{Path, PathBuf};
 use crate::PloogInner;
 use std::cmp::Ordering;
 
-macro_rules! ploog_template {
-    () => {
-        "<!DOCTYPE html lang=\"en\"><html><head><meta charset=\"UTF-8\"></head><body>{}<body><html>"
-    };
-}
-
 fn to_html(input: &str) -> String {
     let mut options = Options::empty();
     options.insert(Options::ENABLE_STRIKETHROUGH);
@@ -63,7 +57,7 @@ impl ParsingError {
     }
 }
 
-pub type ParserResult<T> = std::result::Result<T, ParserError>;
+type ParserResult<T> = std::result::Result<T, ParserError>;
 
 #[derive(Debug)]
 pub struct ParserError {
@@ -299,6 +293,12 @@ impl GenerateSite for PloogInner {
         }
         Ok(posts)
     }
+}
+
+macro_rules! ploog_template {
+    () => {
+        "<!DOCTYPE html lang=\"en\"><html><head><meta charset=\"UTF-8\"></head><body>{}<body><html>"
+    };
 }
 
 #[cfg(test)]

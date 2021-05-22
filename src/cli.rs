@@ -7,8 +7,13 @@ pub fn matches() -> clap::ArgMatches {
         (about: "Configurable Static Site Generator.")
         (@arg source: +required "Toml.MD Sources Directory")
         (@arg output: +required "HTML Output Directory")
-        (@arg server: -s --serve "Serves your site")
-        (@arg watch: -w --watch "Watch source directory for changes")
+        (@subcommand build =>
+            (about: "Build the site")
+        )
+        (@subcommand watch =>
+            (about: "Build the site, rebuild when there are changes")
+            (@arg address: -a --address "Address for server")
+        )
         (@arg console: -c --console "Plugin Store and MD editor")
         (@arg html_slugs: -a --altslug "post.md becomes post.html instead of post/index.html")
     )

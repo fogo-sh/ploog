@@ -24,6 +24,10 @@ pub struct Ploog {
     inner: Arc<PloogInner>,
 }
 
+pub struct Watch<'a> {
+    address: Option<&'a str>,
+}
+
 impl From<ArgMatches> for Ploog {
     fn from(args: ArgMatches) -> Self {
         Ploog {
@@ -39,7 +43,7 @@ impl From<ArgMatches> for Ploog {
     }
 }
 
-fn main() -> ParserResult<()> {
+fn main() -> Result<(), String> {
     let matches = cli::matches();
 
     let app: Ploog = matches.into();
@@ -48,6 +52,6 @@ fn main() -> ParserResult<()> {
     #[allow(unused_variables)]
     let watch = app.watch().unwrap();
 
-    server(app)?;
+    server(app).map_err(|e| e.to_string())?;
     Ok(())
 }

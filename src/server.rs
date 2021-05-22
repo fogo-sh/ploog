@@ -31,7 +31,7 @@ pub async fn server(ploog: Ploog) -> io::Result<()> {
             }
             actix
         });
-        server.bind("127.0.0.1:8080")?.run().await
+        server.bind(app.address)?.run().await
     } else {
         Ok(())
     }
